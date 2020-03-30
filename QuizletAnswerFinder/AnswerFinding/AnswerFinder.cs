@@ -5,6 +5,8 @@ using HtmlAgilityPack;
 using ScrapySharp.Network;
 using Models;
 using WebScraper.SetDownload;
+using QuizletAnswerFinder.AnswerFinding;
+using System.Text;
 
 namespace WebScraper
 {
@@ -18,58 +20,63 @@ namespace WebScraper
         private Dictionary<String, QuestionInfo> Questions = new Dictionary<String, QuestionInfo>();
 
 
-
-
-
-        public void FindAnswers(String question,String subject)
+        public String FindAnswers(String question,String subject)
         {
 
+
             question = question.ToLower().Trim();
-         
+
+            AnswerFormatting answerFormattingPossible = new AnswerFormatting(question);
+
+
             // I dont think subjects are case sensetive on quizlet
             List<String> setList = GetSetUrl(subject);
 
             foreach (String setUrl in setList)
             {
 
-                List<QuestionInfo> questions = GetSetInfo(setUrl);
+                List<QuestionInfo> questions = GetSetInfo(setUrl,question);
 
 
-              
-
-                // The exact question might have been found
+                // The exact question might have been found. Use dictionary to provide constent time lookup for a correct match
                 if (Questions.ContainsKey(question))
                 {
-                    Console.WriteLine("Exact Match!");
-                    QuestionInfo exact = Questions[question];
-                    Console.WriteLine(exact.Question);
-                    Console.WriteLine(exact.Answer);
+
+                 
+                    AnswerFormatting answerFormattingCorrect = new AnswerFormatting(question);
+
+                    answerFormattingCorrect.AddQuestionInfo(Questions[question]);
+
                     Questions.Clear();
-                    XmlGenerator generator = new XmlGenerator();
-                    generator.GenerateXML(subject, questions);
-                    break;
+                    
+                   
+                    return answerFormattingCorrect.ToString();
+ 
                 }
 
+
                 // If the exact question was not found, try to find other possible ones.
+
                 foreach (QuestionInfo questionInfo in questions)
                 {
 
-                    if (questionInfo.Matches(question) == FoundType.POSSIBLE)
+                    if (questionInfo.Matches() == FoundType.POSSIBLE)
                     {
-                        Console.WriteLine("****************");
-                        Console.WriteLine("Possible");
-                        Console.WriteLine(questionInfo.Question);
-                        Console.WriteLine(questionInfo.Answer);
+                      
+                        answerFormattingPossible.AddQuestionInfo(questionInfo);
 
                     }
 
                 }
 
+               
 
             }
 
 
             Questions.Clear();
+
+            return answerFormattingPossible.ToString();
 
 
         }
@@ -121,7 +128,7 @@ namespace WebScraper
         /// </summary>
         /// <param name="url">The url of the set</param>
         /// <returns></returns>
-         List<QuestionInfo> GetSetInfo(String url)
+         List<QuestionInfo> GetSetInfo(String url,String userEnterQuestion)
         {
 
             //TODO do we really need these to be sorted?
@@ -141,12 +148,9 @@ namespace WebScraper
                 // Make sure all leading and trailing white spaces are gone. Lowercase the entire string
                 String foundQuestion = stuff[i].InnerText.ToLower().Trim();
                 String answer = stuff[i + 1].InnerText;
+               
 
-                QuestionInfo questionInfo = new QuestionInfo
-                {
-                    Answer = answer,
-                    Question = foundQuestion
-                };
+                QuestionInfo questionInfo = new QuestionInfo(foundQuestion, answer, userEnterQuestion);
 
                 // Add the question info to the dictionary. Use the found question as the key.
                 if (!Questions.ContainsKey(foundQuestion))

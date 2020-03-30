@@ -7,15 +7,32 @@ namespace Models
 
     public class QuestionInfo
     {
-        public String Question { get; set; }
-        public String Answer { get; set; }
+        public String Question { get; private set; }
+        public String Answer { get; private set; }
 
-        public FoundType Matches(String question)
+        private String UserEnterQuestion { get; set; }
+
+        public QuestionInfo(String question,String answer,String userEnterQuestion)
+        {
+            Question = question;
+            Answer = answer;
+            UserEnterQuestion = userEnterQuestion;
+        }
+
+        /// <summary>
+        /// Checks if the user question matches the current question pulled from quizlet
+        /// </summary>
+        /// <returns></returns>
+        public FoundType Matches()
         {
 
             JaccardDistance jaccardDistance = new JaccardDistance();
 
-            decimal d = jaccardDistance.Distance(Question, question);
+            decimal d = jaccardDistance.Distance(Question, UserEnterQuestion);
+
+            
+            if (d == 100)
+                return FoundType.CORRECT;
 
             if(d >= 50)
             {
