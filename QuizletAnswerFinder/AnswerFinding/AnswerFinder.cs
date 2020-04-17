@@ -4,7 +4,6 @@ using System.Linq;
 using HtmlAgilityPack;
 using ScrapySharp.Network;
 using Models;
-using WebScraper.SetDownload;
 using QuizletAnswerFinder.AnswerFinding;
 using System.Text;
 
