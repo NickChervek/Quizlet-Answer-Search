@@ -8,7 +8,7 @@ using WebScraper.SetDownload;
 using QuizletAnswerFinder.AnswerFinding;
 using System.Text;
 
-namespace WebScraper
+namespace QuizletAnswerFinder.AnswerFinding
 {
     public class AnswerFinder
     {
