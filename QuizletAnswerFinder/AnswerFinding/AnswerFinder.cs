@@ -6,63 +6,139 @@ using ScrapySharp.Network;
 using Models;
 using QuizletAnswerFinder.AnswerFinding;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace QuizletAnswerFinder.AnswerFinding
 {
     public class AnswerFinder
     {
 
-        private static ScrapingBrowser browser = new ScrapingBrowser();
-        /// <summary>
-        /// Holds all found question and answers from quizlet and allows to find by question
-        /// </summary>
-        private Dictionary<String, QuestionInfo> Questions = new Dictionary<String, QuestionInfo>();
 
+        private HashSet<string> addedQuestions { get; set; } = new HashSet<string>();
 
-        public String FindAnswers(String question,String subject)
+        public List<QuestionInfo> FindAnswers(String question, String subject)
         {
 
 
             question = question.ToLower().Trim();
 
-            AnswerFormatting answerFormattingPossible = new AnswerFormatting(question);
-
+            List<QuestionInfo> possible = new List<QuestionInfo>();
+            List<QuestionInfo> correctQuestion = new List<QuestionInfo>();
 
             // I dont think subjects are case sensetive on quizlet
-            List<String> setList = GetSetUrl(subject);
+            List<String> setList =  GetSetUrl(subject);
 
-            foreach (String setUrl in setList)
+
+            Parallel.ForEach(setList, (setURL, state) =>
             {
 
-                List<QuestionInfo> questions = GetSetInfo(setUrl,question);
+                 GetSetInfo(setURL, question, possible,correctQuestion, state);
+
+            });
+
+            return correctQuestion.Count() == 1 ? correctQuestion : possible;
 
 
-                // The exact question might have been found. Use dictionary to provide constent time lookup for a correct match
-                if (Questions.ContainsKey(question))
+           
+        }
+
+
+            /// <summary>
+            /// Returns all links to each set that matches the subject
+            /// </summary>
+            /// <param name="subject">The name to use</param>
+            /// <returns></returns>
+             List<String> GetSetUrl(String subject)
+            {
+
+                ScrapingBrowser browser = new ScrapingBrowser();
+                String subjectUrl = CreateUrlFromSuject(subject);
+
+                WebPage page =  browser.NavigateToPage(new Uri(subjectUrl));
+
+                HtmlNode node = page.Html;
+
+
+                var v = node.Descendants("a").Where(x => x.GetAttributeValue("class", "").Equals("UILink")).ToList();
+
+
+                List<String> SetUrls = new List<string>();
+
+                foreach (HtmlNode n in v)
                 {
 
-                 
-                    AnswerFormatting answerFormattingCorrect = new AnswerFormatting(question);
+                    String value = n.GetAttributeValue("href", "");
 
-                    answerFormattingCorrect.AddQuestionInfo(Questions[question]);
+                    if (value.Contains("https://"))
+                    {
+                        SetUrls.Add(value);
+                    }
 
-                    Questions.Clear();
-                    
-                   
-                    return answerFormattingCorrect.ToString();
- 
+
                 }
 
+                return SetUrls;
 
-                // If the exact question was not found, try to find other possible ones.
+            }
 
-                foreach (QuestionInfo questionInfo in questions)
+
+        /// <summary>
+        /// Loops over a set and returns the correct answer if found or any possibilities.
+        /// </summary>
+        /// <param name="url">The url of the set</param>
+        /// <returns></returns>
+        void GetSetInfo(String url, String userEnterQuestion, List<QuestionInfo> possible,List<QuestionInfo> correct,ParallelLoopState state)
+            {
+                ScrapingBrowser scrapingBrowser = new ScrapingBrowser();
+
+                List<QuestionInfo> setInfo = new List<QuestionInfo>();
+
+                WebPage page = scrapingBrowser.NavigateToPage(new Uri(url));
+
+
+
+                HtmlNode n = page.Html;
+
+                String name = n.Descendants("title").FirstOrDefault().InnerHtml;
+
+                var stuff = n.Descendants("span").Where(x => x.GetAttributeValue("class", "").Contains("TermText")).ToList();
+
+                for (int i = 0; i < stuff.Count() - 2; i += 2)
                 {
 
-                    if (questionInfo.Matches() == FoundType.POSSIBLE)
+                  
+                            
+
+                    // Make sure all leading and trailing white spaces are gone. Lowercase the entire string
+                    String foundQuestion = stuff[i].InnerText.ToLower().Trim();
+                    String answer = stuff[i + 1].InnerText;
+
+
+                    QuestionInfo questionInfo = new QuestionInfo(foundQuestion, answer, userEnterQuestion);
+
+
+                    // Add the question info to the dictionary. Use the found question as the key.
+                    if (!addedQuestions.Contains(foundQuestion))
                     {
-                      
-                        answerFormattingPossible.AddQuestionInfo(questionInfo);
+                        addedQuestions.Add(foundQuestion);
+
+                        //Check if we have found the exact answer
+                        if (questionInfo.Matches().foundType == FoundType.CORRECT)
+                        {
+
+                        
+                             correct.Add(questionInfo);
+
+                             state.Break();
+                            
+
+                        }
+                        // Add a possibility to the list of questions
+                        else if (questionInfo.Matches().foundType == FoundType.POSSIBLE)
+                        {
+                            possible.Add(questionInfo);
+                        }
 
                     }
 
@@ -73,110 +149,19 @@ namespace QuizletAnswerFinder.AnswerFinding
             }
 
 
-            Questions.Clear();
-
-            return answerFormattingPossible.ToString();
-
-
-        }
 
 
 
 
 
-        /// <summary>
-        /// Returns all links to each set that matches the subject
-        /// </summary>
-        /// <param name="subject">The name to use</param>
-        /// <returns></returns>
-        List<String> GetSetUrl(String subject)
-        {
 
-            String subjectUrl = CreateUrlFromSuject(subject);
-
-            WebPage page = browser.NavigateToPage(new Uri(subjectUrl));
-
-            HtmlNode node = page.Html;
-
-
-            var v = node.Descendants("a").Where(x => x.GetAttributeValue("class", "").Equals("UILink")).ToList();
-
-
-            List<String> SetUrls = new List<string>();
-
-            foreach (HtmlNode n in v)
+            ///<summary>
+            ///Creates the url that points to the collection of sets
+            ///</summary>
+            String CreateUrlFromSuject(String subject)
             {
-
-                String value = n.GetAttributeValue("href", "");
-
-                if (value.Contains("https://"))
-                {
-                    SetUrls.Add(value);
-                }
-
-
+                return String.Format("https://quizlet.com/subject/{0}/", subject);
             }
-
-            return SetUrls;
-
-        }
-
-
-        /// <summary>
-        /// Loops over a set and stores the all question and answers. 
-        /// </summary>
-        /// <param name="url">The url of the set</param>
-        /// <returns></returns>
-         List<QuestionInfo> GetSetInfo(String url,String userEnterQuestion)
-        {
-
-            //TODO do we really need these to be sorted?
-            List<QuestionInfo> setInfo = new List<QuestionInfo>();
-
-            WebPage page = browser.NavigateToPage(new Uri(url));
-
-            HtmlNode n = page.Html;
-
-            String name = n.Descendants("title").FirstOrDefault().InnerHtml;
-
-            var stuff = n.Descendants("span").Where(x => x.GetAttributeValue("class", "").Contains("TermText")).ToList();
-
-            for (int i = 0; i < stuff.Count() - 2; i += 2)
-            {
-
-                // Make sure all leading and trailing white spaces are gone. Lowercase the entire string
-                String foundQuestion = stuff[i].InnerText.ToLower().Trim();
-                String answer = stuff[i + 1].InnerText;
-               
-
-                QuestionInfo questionInfo = new QuestionInfo(foundQuestion, answer, userEnterQuestion);
-
-                // Add the question info to the dictionary. Use the found question as the key.
-                if (!Questions.ContainsKey(foundQuestion))
-                {
-                    setInfo.Add(questionInfo);
-                    Questions.Add(foundQuestion, questionInfo);
-                }
-
-
-
-            }
-
-            return setInfo;
-
-        }
-
-
-
-
-
-
-        ///<summary>
-        ///Creates the url that points to the collection of sets
-        ///</summary>
-        String CreateUrlFromSuject(String subject)
-        {
-            return String.Format("https://quizlet.com/subject/{0}/", subject);
         }
     }
-}
+

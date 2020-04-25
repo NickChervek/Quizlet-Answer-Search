@@ -22,7 +22,7 @@ namespace QuizletAnswerFinder.AnswerFinding
         /// <param name="questionInfo"></param>
         public void AddQuestionInfo(QuestionInfo questionInfo)
         {
-            FoundType foundType = questionInfo.Matches();
+            FoundType foundType = questionInfo.Matches().foundType;
 
             XElement questionAnswer = new XElement("QuestionAnswer",new XAttribute("CorrectMatch",foundType.ToString()));
             questionAnswer.Add(new XElement("Question", questionInfo.Question));
