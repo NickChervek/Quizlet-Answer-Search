@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using HtmlAgilityPack;
-using ScrapySharp.Network;
 using Models;
 using QuizletAnswerFinder.AnswerFinding;
 using System.Text;
@@ -52,12 +51,15 @@ namespace QuizletAnswerFinder.AnswerFinding
              List<String> GetSetUrl(String subject)
             {
 
-                ScrapingBrowser browser = new ScrapingBrowser();
+                //ScrapingBrowser browser = new ScrapingBrowser();
                 String subjectUrl = CreateUrlFromSuject(subject);
 
-                WebPage page =  browser.NavigateToPage(new Uri(subjectUrl));
+            // WebPage page =  browser.NavigateToPage(new Uri(subjectUrl));
 
-                HtmlNode node = page.Html;
+            HtmlDocument htmlDocument = GetHtmlDocument(subjectUrl);
+            HtmlNode node = htmlDocument.DocumentNode;
+
+            //    HtmlNode node = page.Html;
 
 
                 var v = node.Descendants("a").Where(x => x.GetAttributeValue("class", "").Equals("UILink")).ToList();
@@ -90,15 +92,18 @@ namespace QuizletAnswerFinder.AnswerFinding
         /// <returns></returns>
         void GetSetInfo(String url, String userEnterQuestion, List<QuestionInfo> possible,List<QuestionInfo> correct,ParallelLoopState state)
             {
-                ScrapingBrowser scrapingBrowser = new ScrapingBrowser();
+               // ScrapingBrowser scrapingBrowser = new ScrapingBrowser();
 
                 List<QuestionInfo> setInfo = new List<QuestionInfo>();
 
-                WebPage page = scrapingBrowser.NavigateToPage(new Uri(url));
+            //  WebPage page = scrapingBrowser.NavigateToPage(new Uri(url));
+
+            HtmlDocument htmlDocument = GetHtmlDocument(url);
+            HtmlNode n = htmlDocument.DocumentNode;
 
 
 
-                HtmlNode n = page.Html;
+               // HtmlNode n = page.Html;
 
                 String name = n.Descendants("title").FirstOrDefault().InnerHtml;
 
@@ -153,6 +158,12 @@ namespace QuizletAnswerFinder.AnswerFinding
 
 
 
+           HtmlDocument GetHtmlDocument(String subject)
+        {
+            HtmlWeb htmlWeb = new HtmlWeb();
+            htmlWeb.UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Safari/605.1.15";
+            return htmlWeb.Load(subject);
+        }
 
 
             ///<summary>
