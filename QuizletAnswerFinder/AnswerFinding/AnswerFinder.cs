@@ -28,8 +28,10 @@ namespace QuizletAnswerFinder.AnswerFinding
             // I dont think subjects are case sensetive on quizlet
             List<String> setList =  GetSetUrl(subject);
 
+            ParallelOptions parallelOptions = new ParallelOptions();
+            parallelOptions.MaxDegreeOfParallelism = 2;
 
-            Parallel.ForEach(setList, (setURL, state) =>
+            Parallel.ForEach(setList,parallelOptions, (setURL, state) =>
             {
 
                  GetSetInfo(setURL, question, possible,correctQuestion, state);

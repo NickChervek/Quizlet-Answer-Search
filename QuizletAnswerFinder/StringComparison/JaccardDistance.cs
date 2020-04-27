@@ -7,6 +7,9 @@ namespace StringComparion
        public decimal Distance(String one,String two)
        {
 
+            one = RemovePunctuation(one);
+            two = RemovePunctuation(two);
+
             String[] oneTokens = one.Split(null);
             String[] twoTokens = two.Split(null);
 
@@ -30,5 +33,16 @@ namespace StringComparion
             return distanceD;
 
        }
+
+        private String RemovePunctuation(String s)
+        {
+            int index = s.IndexOfAny(new char[] { '!', '.', '?' });
+            if(index == s.Length - 1)
+            {
+                return s.Substring(0, s.Length - 1);
+            }
+            return s;
+        }
+
     }
 }
